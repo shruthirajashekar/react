@@ -5,10 +5,12 @@ import Quagga from "quagga";
 import label101 from "./assets/label101.jpg";
 import CameraPhoto, { FACING_MODES } from "jslib-html5-camera-photo";
 import Progress from "react-progressbar";
+import cv from "opencv.js";
+import label101 from "./assets/label101.jpg";
 
 class App extends Component {
-  constructor() {
-    super();
+  constructor(props, context) {
+    super(props, context);
     this.cameraPhoto = null;
     this.videoRef = React.createRef();
     this.state = {
@@ -53,7 +55,7 @@ class App extends Component {
     // mounted.
     console.log("@@@: this.videoRef.current ="+this.videoRef.current)
     this.cameraPhoto = new CameraPhoto(this.videoRef.current);
-    this.loadResources();
+    //this.loadResources();
   }
 
   loadResources = async () => {
@@ -280,6 +282,141 @@ class App extends Component {
     return image
   }
 
+  takePhoto() {
+    const config = {
+      sizeFactor: 1,
+    };
+
+    let dataUri = this.cameraPhoto.getDataUri(config);
+    this.setState({ dataUri });
+
+    // let src = cv.imread('imgCamera');
+    // let dst = cv.Mat.zeros(src.rows, src.cols, cv.CV_8UC3);
+    // cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
+    // cv.threshold(src, src, 100, 200, cv.THRESH_BINARY);
+    // let contours = new cv.MatVector();
+    // let hierarchy = new cv.Mat();
+    // let poly = new cv.MatVector();
+    // cv.findContours(src, contours, hierarchy, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE);
+    // // approximates each contour to polygon
+    // for (let i = 0; i < contours.size(); ++i) {
+    //     let tmp = new cv.Mat();
+    //     let cnt = contours.get(i);
+    //     // You can try more different parameters
+    //     cv.approxPolyDP(cnt, tmp, 3, true);
+    //     poly.push_back(tmp);
+    //     cnt.delete(); tmp.delete();
+    // }
+    // // draw contours with random Scalar
+    // for (let i = 0; i < contours.size(); ++i) {
+    //     let color = new cv.Scalar(Math.round(Math.random() * 255), Math.round(Math.random() * 255),
+    //                               Math.round(Math.random() * 255));
+    //     cv.drawContours(dst, poly, i, color, 1, 8, hierarchy, 0);
+    // }
+    // cv.imshow('canvasOutput', dst);
+    // this.setState({ dataUri });
+
+    // src.delete(); dst.delete(); hierarchy.delete(); contours.delete(); poly.delete();
+
+    //bounding rectangle
+    let src1 = cv.imread("imgCamera");
+    let dst1 = cv.Mat.zeros(src1.rows, src1.cols, cv.CV_8UC3);
+    cv.cvtColor(src1, src1, cv.COLOR_RGBA2GRAY, 0);
+    cv.threshold(src1, src1, 177, 200, cv.THRESH_BINARY);
+    let contours1 = new cv.MatVector();
+
+    //console.log("contors = "+valueOf(contours1));
+    let hierarchy1 = new cv.Mat();
+    cv.findContours(
+      src1,
+      contours1,
+      hierarchy1,
+      cv.RETR_CCOMP,
+      cv.CHAIN_APPROX_SIMPLE
+    );
+
+    let minX, minY, maxX, maxY;
+    let mixXpoint;
+    let maxYpoint;
+
+    let minX1, maxY1;
+    let mixXpoint1;
+    let maxYpoint1;
+    for (let i = 0; i < contours1.size(); ++i) {
+      let cnt1 = contours1.get(i);
+     // console.log("Shruthi: contours1 value =" + cnt1);
+      let rect = cv.boundingRect(cnt1);
+      //console.log("Shruthi: Rect value =" + rect);
+      if (i === 0) {
+        minX = rect.x;
+        maxY = rect.y;
+      }
+
+      //Point A
+      if (rect.x > 0 && rect.x <= minX) {
+        //console.log("Shruthi: rect: =" + JSON.stringify(rect));
+
+        minX = rect.x;
+        minY = rect.y;
+        minX1 = minX;
+        //console.log("Shruthi: Point A: =" + JSON.stringify(rect));
+        mixXpoint = new cv.Point(rect.x, rect.y);
+      }
+
+      //Point B
+      if (rect.y >= maxY) {
+        maxX = rect.x;
+        maxY = rect.y;
+        maxY1 = maxY;
+        //console.log("Shruthi: Point B: =" + JSON.stringify(rect));
+        maxYpoint = new cv.Point(rect.x, rect.y);
+      }
+
+      //Point A1
+      if (rect.x >= minX && rect.y <= minY) {
+        minX1 = rect.x;
+        console.log("Shruthi: Point A1: =" + JSON.stringify(rect));
+        mixXpoint1 = new cv.Point(rect.x, rect.y);
+      }
+
+      //Point B1
+      if (rect.y > 0 && rect.y >= maxY) {
+        maxY1 = rect.y;
+        console.log("Shruthi: Point B1: =" + JSON.stringify(rect));
+        maxYpoint1 = new cv.Point(rect.x, rect.y);
+      }
+
+      let contoursColor = new cv.Scalar(255, 255, 255);
+      let rectangleColor = new cv.Scalar(255, 0, 0);
+      cv.drawContours(dst1, contours1, 0, contoursColor, 1, 8, hierarchy1, 100);
+      let point1 = new cv.Point(rect.x, rect.y);
+      let point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
+      cv.rectangle(dst1, point1, point2, rectangleColor, 2, cv.LINE_AA, 0);
+    }
+    
+    //green rectangle
+    cv.rectangle(dst1, mixXpoint, maxYpoint, new cv.Scalar(165, 206, 94), 2, cv.LINE_AA, 0);
+    //Magenta rectangle
+    cv.rectangle(dst1, mixXpoint1, maxYpoint1, new cv.Scalar(255, 51, 153), 2, cv.LINE_AA, 0);
+
+    console.log("mixXpoint: = " + JSON.stringify(mixXpoint));
+    console.log("maxYpoint: = " + JSON.stringify(maxYpoint));
+    console.log("Min X: = " + minX);
+    console.log("Max Y: = " + maxY);
+
+    console.log("mixXpoint1: = " + JSON.stringify(mixXpoint1));
+    console.log("maxYpoint1: = " + JSON.stringify(maxYpoint1));
+    console.log("Min X1: = " + minX1);
+    console.log("Max Y1: = " + maxY1);
+
+    cv.imshow("canvasOutput", dst1);
+    src1.delete();
+    dst1.delete();
+    contours1.delete();
+    hierarchy1.delete(); 
+    //cnt1.delete();
+  }
+
   render() {
     return (
       <div style={{ margin: 10 }}>
@@ -316,11 +453,16 @@ class App extends Component {
         </button>
 
         <button
-          onClick={this.captureImage}
+          onClick={() => {
+            this.takePhoto();
+          }}
         >
-          Take Photo
+          {" "}
+          Take photo{" "}
         </button>
-        <img alt=" " src={this.state.dataUri} />
+        <img id="imgCamera1" alt="imgCamera1" />
+        <canvas id="canvasOutput"></canvas>
+        <img id="imgCamera" alt="imgCamera" src={label101} />
         <canvas
       ref={(canvas) => { this.canvas = canvas }}
       width='800'
